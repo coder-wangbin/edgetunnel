@@ -1,0 +1,121 @@
+# EdgeTunnel 配套 Clash Meta / mihomo 配置示例
+# ============================================
+# 作用：自动排除香港节点 + AI 流量走非 HK 节点
+# 用法：保存为 config.yaml，与 EdgeTunnel 订阅一起导入 Clash Verge Rev / mihomo
+# ============================================
+#
+# ⚠️ 这是配置片段，需要配合你的订阅 URL 使用
+# 推荐做法：直接在 Clash Verge Rev 里把 EdgeTunnel 订阅 URL 填进去
+# 然后用「覆写」功能合并下面的 proxy-groups 和 rules
+
+# 节点选择策略
+# --------------------------------------------
+# ⚡ 自动选择 - 延迟最低
+# 🎯 手动选择 - 用户自选
+# 🌐 国外服务 - 所有非 AI 流量，自动选最优
+# 🤖 AI 服务 - ChatGPT/Claude，只走非 HK 节点
+# 🇺🇸 美区 - 强制 US 节点
+# 🇯🇵 日本 - 强制 JP 节点
+
+proxy-groups:
+  - name: ⚡ 自动选择
+    type: url-test
+    url: http://www.gstatic.com/generate_204
+    interval: 300
+    tolerance: 50
+    proxies:
+      - 全部节点
+
+  - name: 🌐 国外服务
+    type: select
+    proxies:
+      - ⚡ 自动选择
+      - 🎯 手动选择
+      - DIRECT
+      - REJECT
+
+  - name: 🤖 AI 服务
+    type: url-test
+    url: http://www.gstatic.com/generate_204
+    interval: 300
+    tolerance: 50
+    # 关键：使用 filter 把所有非 HK 节点挑出来
+    filter: "(?i)台湾|日本|韩国|新加坡|美国|洛杉矶|西雅图|东京|首尔|新加坡|US|JP|KR|SG|TW|SJC|LAX|NRT|ICN|SIN|TPE"
+    # 备选：如果你用 EdgeTunnel 节点名是 #HK-HKG 形式，可以用反向过滤：
+    # exclude-filter: "(?i)香港|HK|HKG"
+    proxies:
+      - 全部节点
+
+  - name: 🇺🇸 美区服务
+    type: url-test
+    url: http://www.gstatic.com/generate_204
+    interval: 600
+    filter: "(?i)美国|US|LAX|SJC|SEA|ORD|EWR|美国-LAX|美国-SJC"
+    proxies:
+      - 全部节点
+
+  - name: 🇯🇵 日本服务
+    type: url-test
+    url: http://www.gstatic.com/generate_204
+    interval: 600
+    filter: "(?i)日本|JP|NRT|KIX|东京|大阪"
+    proxies:
+      - 全部节点
+
+  - name: 🎯 手动选择
+    type: select
+    proxies:
+      - 全部节点
+
+  - name: 全部节点
+    type: select
+    use-all-providers: true
+
+# AI 服务路由规则（这些走 🤖 AI 服务组，强制避开 HK）
+# --------------------------------------------
+rules:
+  # ChatGPT / OpenAI
+  - DOMAIN-SUFFIX,openai.com,🤖 AI 服务
+  - DOMAIN-SUFFIX,chatgpt.com,🤖 AI 服务
+  - DOMAIN-SUFFIX,chat.openai.com,🤖 AI 服务
+  - DOMAIN-SUFFIX,oaistatic.com,🤖 AI 服务
+  - DOMAIN-SUFFIX,oaiusercontent.com,🤖 AI 服务
+  - DOMAIN-SUFFIX,openaiusercontent.com,🤖 AI 服务
+  - DOMAIN-KEYWORD,openai,🤖 AI 服务
+  - DOMAIN-KEYWORD,chatgpt,🤖 AI 服务
+
+  # Claude / Anthropic
+  - DOMAIN-SUFFIX,anthropic.com,🤖 AI 服务
+  - DOMAIN-SUFFIX,claude.ai,🤖 AI 服务
+  - DOMAIN-KEYWORD,anthropic,🤖 AI 服务
+  - DOMAIN-KEYWORD,claude,🤖 AI 服务
+
+  # Google AI
+  - DOMAIN-SUFFIX,gemini.google.com,🤖 AI 服务
+  - DOMAIN-SUFFIX,bard.google.com,🤖 AI 服务
+  - DOMAIN-SUFFIX,aistudio.google.com,🤖 AI 服务
+
+  # 其他 AI 服务
+  - DOMAIN-SUFFIX,perplexity.ai,🤖 AI 服务
+  - DOMAIN-SUFFIX,poe.com,🤖 AI 服务
+  - DOMAIN-SUFFIX,you.com,🤖 AI 服务
+  - DOMAIN-SUFFIX,phind.com,🤖 AI 服务
+  - DOMAIN-SUFFIX,huggingface.co,🤖 AI 服务
+
+  # 美区专用服务（Disney+ / Netflix / Spotify 等）
+  - DOMAIN-SUFFIX,disneyplus.com,🇺🇸 美区服务
+  - DOMAIN-SUFFIX,disney-plus.net,🇺🇸 美区服务
+  - DOMAIN-SUFFIX,netflix.com,🇺🇸 美区服务
+  - DOMAIN-SUFFIX,nflxvideo.net,🇺🇸 美区服务
+  - DOMAIN-SUFFIX,nflximg.net,🇺🇸 美区服务
+  - DOMAIN-SUFFIX,spotify.com,🇺🇸 美区服务
+
+  # 日本专用服务
+  - DOMAIN-SUFFIX,nicovideo.jp,🇯🇵 日本服务
+  - DOMAIN-SUFFIX,niconico.jp,🇯🇵 日本服务
+  - DOMAIN-SUFFIX,pixiv.net,🇯🇵 日本服务
+  - DOMAIN-SUFFIX,line.me,🇯🇵 日本服务
+
+  # 其他国外流量走 🌐 国外服务
+  - GEOIP,CN,DIRECT
+  - MATCH,🌐 国外服务
